@@ -12,3 +12,7 @@ coverage/
 server/.env
 client/.env
 !.env.example
+
+# Private buildathon docs — keep local only
+skill.md
+instructions.md
