@@ -1,0 +1,14 @@
+node_modules/
+dist/
+build/
+coverage/
+*.log
+.DS_Store
+
+# Environment — never commit real values
+.env
+.env.local
+.env.*.local
+server/.env
+client/.env
+!.env.example

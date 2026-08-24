@@ -1,0 +1,23 @@
+{
+  "name": "recoveryos",
+  "private": true,
+  "version": "0.1.0",
+  "description": "RecoveryOS — agentic revenue recovery for failed payments (synthetic demo)",
+  "workspaces": [
+    "server",
+    "client"
+  ],
+  "scripts": {
+    "dev:server": "npm run dev -w server",
+    "dev:client": "npm run dev -w client",
+    "build": "npm run build -w server && npm run build -w client",
+    "seed": "npm run seed -w server",
+    "benchmark": "npm run benchmark -w server",
+    "test:server": "npm run test -w server",
+    "test:client": "npm run test -w client",
+    "typecheck": "npm run typecheck -w server && npm run typecheck -w client"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
