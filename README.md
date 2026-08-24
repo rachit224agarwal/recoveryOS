@@ -1,150 +1,165 @@
 # RecoveryOS
 
-**Every failed payment is money you already earned — this agent goes and gets it back.**
-
-RecoveryOS watches payments fail, figures out *why*, decides whether the money is winnable,
-checks the safety rules, tries to recover it in a sandbox, verifies what happened, and writes
-everything down so you can audit every single decision.
-
-> **Heads up:** everything here is a synthetic simulation. No real money moves, no real
-> Razorpay account is touched. It's a faithful replica built for demonstration.
+**When an online payment fails, the money you earned doesn't disappear — it gets stuck.
+RecoveryOS is an AI agent whose only job is to get that money back.**
 
 ---
 
-## The problem, in one paragraph
+## Never heard of this problem? Start here.
 
-Roughly 1–2% of online payments fail. Merchants mostly respond by blindly retrying — same
-payment, same delay, no thinking. That wastes retries on hopeless cases, spams customers who
-just don't have the money today, and leaves perfectly recoverable payments dead in the water.
-The fix isn't "retry harder". It's **look before you act** — and that's a job for an agent.
+When you pay for something online, the payment sometimes fails — your bank is slow, the
+network drops, you don't have balance that second, or an OTP expires. It happens on
+1–2% of all online payments.
 
-## What the agent actually does
+Here's the thing most people don't realize: **that sale isn't dead.** The customer usually
+*wants* to pay. The merchant just never tries again in the right way — so the money sits
+there, lost.
 
-Follow one failed payment through the system:
+Today, merchants handle failures in the dumbest possible way: **retry every failure
+automatically, exactly the same way, no matter what.** That means:
 
-```
-1. A payment fails            →  ₹5,000 UPI payment, bank timed out
-2. The agent reads the scene  →  customer has a good track record, only 1 attempt so far
-3. It makes a call            →  "68% likely to recover — retry now"
-4. Safety checks run          →  retry limits? amount caps? merchant rules? all pass
-5. It acts (in a simulator)   →  retry executes... payment succeeds
-6. It verifies                →  money recovered, outcome recorded
-7. It writes everything down  →  full audit trail, forever
-```
+- Retrying people who will *never* be able to pay (wasted effort, annoyed customers)
+- Giving up on people where one polite nudge would have worked
+- No idea *why* each payment failed, because nobody looked
 
-If any safety check fails, nothing executes. If the case is too risky or too ambiguous,
-it doesn't guess — it routes to a human.
+RecoveryOS replaces blind retrying with **an agent that looks before it acts.**
 
-## Does it work?
+## What it does, step by step
 
-We replayed the **same 10,000 failed payments** two ways:
+Follow one failed ₹5,000 payment through the system:
 
-| | Old way (blind retry) | RecoveryOS |
+| Step | What happens | In plain words |
 | --- | --- | --- |
-| Recovery rate | 35.7% | **41.9%** |
-| Revenue recovered | ₹1.91 Cr | **₹2.20 Cr (+15%)** |
-| Retry attempts | 10,000 | **3,074 (−69%)** |
-| Wasted retries | 53% | **33%** |
+| 1 | A payment fails | Bank timed out. ₹5,000 is now stuck. |
+| 2 | The agent investigates | Reads the payment details and the customer's history: "This person pays reliably. This is their first failure." |
+| 3 | It estimates the odds | "About 68% chance we get this money back if we try again now." |
+| 4 | It proposes an action | "Retry the charge right away." |
+| 5 | Safety rules review it | Are we over the retry limit? Is the amount too big to automate? Does the merchant allow this action? |
+| 6 | It acts — safely | Rules passed, so the action runs in a **simulator** (no real money). Payment succeeds. |
+| 7 | It proves everything | Every thought, check and result is written to an audit log you can read forever. |
 
-Translation: **it earns more money by bothering customers less.**
+And when the situation looks risky or confusing, the agent does something rare for software:
+**it refuses to act alone** and hands the case to a human instead.
 
-*(Synthetic data, deterministic seed — reproducible via `npm run benchmark`.)*
+## Proof: same data, two brains
 
-## Run it yourself
+We replayed the identical set of **10,000 failed payments** through both strategies:
 
-You need Node 20+ and MongoDB running locally.
+| What we measured | Old way (retry everything) | RecoveryOS |
+| --- | --- | --- |
+| Share of stuck money recovered | 35.7% | **41.9%** |
+| Total revenue recovered | ₹1.91 Cr | **₹2.20 Cr** (+15%) |
+| Retry attempts made | 10,000 | **3,074** (−69%) |
+| Retries wasted on hopeless cases | 53% | **33%** |
+
+Read that last column again: **it recovers more money while contacting customers 69% less.**
+That's the whole point — smarter targeting beats brute force.
+
+*(Synthetic data with a fixed random seed, so anyone can reproduce these exact numbers. See
+"How the comparison is fair" below.)*
+
+## Try it in 60 seconds
+
+You need [Node.js 20+](https://nodejs.org) and [MongoDB](https://www.mongodb.com/try/download/community) running on your machine.
 
 ```bash
-npm install                          # install everything
+npm install                          # download dependencies
 
-cp server/.env.example server/.env   # add GEMINI_API_KEY if you have one (optional)
-npm run seed                         # creates 12k transactions + real agent runs + benchmark
+cp server/.env.example server/.env   # create config (works as-is; Gemini key optional)
+npm run seed                         # builds 12,000 realistic sample payments + results
 
-npm run dev:server                   # API on http://localhost:5050
-npm run dev:client                   # UI on http://localhost:5173
+npm run dev:server                   # start API   → http://localhost:5050
+npm run dev:client                   # start UI    → http://localhost:5173
 ```
 
-Open **http://localhost:5173**, go to the **Playground** page, break a fake payment,
-and watch the agent think.
+Then open **http://localhost:5173** and do this:
 
-> No Gemini key? Everything still works — the system falls back to its deterministic
-> decision core. The key just upgrades the brain from "rules" to "LLM".
+1. Click **Playground** in the left sidebar.
+2. Leave everything at the defaults and press **"Break it and watch"**.
+3. A fake payment fails. On the right, watch the agent's actual decision appear line by
+   line: what it diagnosed, the odds it calculated, the action it chose, the safety checks
+   that ran, and whether the money came back.
+4. Now change **"Why did it fail?"** to *"Unknown / mysterious decline"* and run it again.
+   Watch it **refuse to act alone** and route the case to a human — that's the safety
+   design working.
+5. Click **Does it work?** to see the old-way-vs-agent scoreboard explained in plain English.
 
-## The UI is written for humans
+> No AI API key? Everything still runs — the agent just uses its built-in rule-based brain
+> instead of Google's Gemini. The app never depends on an external service to stay safe.
 
-Every page answers one question in plain English:
+## What's on each page
 
-| Page | The question it answers |
-| --- | --- |
-| **Overview** | How much money is stuck, and what has the agent been doing about it? |
-| **Failed payments** | What failed, why, and where does each case stand? |
-| **Transaction detail** | The whole story of one payment — evidence, verdict, safety checks, outcome. |
-| **What the agent did** | Every workflow run, live, with its reasoning exposed. |
-| **Does it work?** | Head-to-head: old way vs RecoveryOS on identical data. |
-| **Paper trail** | Every decision ever made, permanently recorded. |
-| **Playground** | Break a fake payment yourself and watch recovery happen live. |
+Every screen answers exactly one question, in plain language:
 
-## The one rule that matters
+- **Overview** — How much money is stuck right now, and what has the agent done lately?
+- **Failed payments** — A searchable list: what failed, why, and where each case stands.
+- **Transaction detail** — The complete story of one payment: evidence → verdict → safety
+  checks → outcome, written so a non-engineer can follow it.
+- **What the agent did** — Every automated decision it ever made, with its reasoning shown.
+- **Does it work?** — The head-to-head benchmark against the naive strategy.
+- **Paper trail** — The permanent audit log. If anyone ever asks "why did it do that?",
+  the answer is here.
+- **Playground** — Break payments on purpose and watch recovery happen live.
 
-> **The LLM recommends. Deterministic code authorizes.**
+## The design rule that makes it trustworthy
 
-The model's output is parsed against a strict schema; anything malformed or missing falls back
-to a deterministic recommender. The guardrail engine — retry budgets, amount thresholds,
-idempotency, duplicate detection, confidence floors, high-value human approval — is ordinary
-TypeScript the model can never touch. An LLM can suggest; it can never spend.
+> **The AI recommends. Ordinary code decides.**
+
+This app uses a large language model (Gemini), but the model is never trusted with anything
+dangerous:
+
+- Its suggestion must match a strict format or it's thrown away and replaced by a simple,
+  predictable rules engine.
+- Hard limits — max retries, amount ceilings, no duplicate charges, mandatory human approval
+  above a value threshold — live in plain TypeScript that the model cannot influence.
+- Nothing executes unless every check passes, and nothing happens without an audit record.
+
+An LLM can *suggest*. It can never *spend*.
 
 ```text
-Payment event
+A payment fails
      ↓
-LangGraph workflow
-  load → diagnose → gather evidence → estimate recoverability
-    → recommend ──→ GUARDRAILS ── BLOCK / needs-human → audit → end
-                        │ ALLOW
-                        ↓
-              execute (simulator) → verify outcome → audit → end
+LangGraph workflow (a fixed pipeline the AI works inside)
+  load case → diagnose cause → gather evidence → estimate odds
+    → recommend action ──→ SAFETY CHECKS ── fail / risky → record & stop (or ask a human)
+                                │ pass
+                                ↓
+                  execute in simulator → verify result → write audit trail
 ```
 
-Swap the LLM without touching anything else: `LLM_PROVIDER` accepts `gemini`, `ollama`,
-or `rules`.
+The AI brain is swappable via one environment variable (`gemini`, `ollama`, or `rules`) —
+the rest of the system never changes.
 
-## Five-minute demo script
+## How the comparison is fair
 
-| Time | Show this |
+- **Old way**: blindly retry every failed payment once after a fixed delay. This mirrors
+  what most real-world recovery systems do.
+- **RecoveryOS**: reads the situation first, then escalates gently — smart primary action,
+  then a reminder nudge, then a self-serve payment link — and never wastes actions on
+  hopeless cases.
+- Every synthetic transaction secretly carries its true recovery probability (hidden ground
+  truth) that **no decision logic is allowed to see**. Afterward, we count how many retries
+  were spent on payments that could never recover anyway. Fixed random seed → identical,
+  reproducible numbers every run.
+
+## Built with
+
+| Layer | Technology |
 | --- | --- |
-| 0:00–0:30 | Overview — the headline sentence says it all |
-| 0:30–1:30 | Playground: create a ₹5,000 failed UPI payment |
-| 1:30–2:30 | Watch the timeline: diagnosis → odds → decision → safety checks → recovered |
-| 2:30–3:15 | Do it again with an ambiguous failure — watch it refuse to act alone |
-| 3:15–4:15 | Does it work? — +15% revenue, −69% retries on identical data |
-| 4:15–5:00 | Paper trail + the architecture slide |
-
-## Under the hood
-
-| Layer | Tech |
-| --- | --- |
-| Frontend | React, Vite, TypeScript, Tailwind CSS, Recharts, Framer Motion |
-| Backend | Node.js, Express, TypeScript |
-| Agent | LangGraph state machine, Zod-validated structured outputs |
-| Brain | Gemini (hosted) or Ollama (local) behind a provider adapter |
-| Memory | MongoDB |
-| Deploy targets | Vercel · Render · Atlas |
+| Interface | React, TypeScript, Tailwind CSS, Recharts |
+| Server | Node.js, Express, TypeScript |
+| Agent pipeline | LangGraph with schema-validated outputs |
+| AI brain | Google Gemini (free tier) or Ollama, behind a swappable adapter |
+| Database | MongoDB |
+| Testing | 22 backend tests covering safety rules, duplicate protection and the simulator |
 
 ```bash
-npm run seed        # regenerate the dataset, process 400 real runs, compute benchmark
-npm run benchmark   # baseline-vs-agent evaluation, standalone
-npm run test:server # 22 tests: guardrails, idempotency, schemas, simulator
-npm run typecheck   # strict TypeScript across both workspaces
+npm run test:server    # run the test suite
+npm run benchmark      # recompute the old-way-vs-agent numbers
+npm run typecheck      # strict types across frontend + backend
 ```
-
-### How the benchmark is fair
-
-- **Old way**: blindly retry every failed payment once after a fixed delay.
-- **RecoveryOS**: read the situation, then climb a bounded ladder — primary action → nudge →
-  self-serve link — and never touch hopeless cases.
-- Each transaction carries hidden ground truth (its true recovery probability) that no
-  decision logic can see. Afterward, we count how many retries were spent on payments that
-  could never recover. Same seed every time, so anyone can reproduce the numbers.
 
 ---
 
-Built for the Razorpay AI Buildathon. Synthetic data, simulated execution, real engineering.
+*Built for the Razorpay AI Buildathon. All data is synthetic, all money is simulated,
+and no real payment system is connected. The engineering is real.*
