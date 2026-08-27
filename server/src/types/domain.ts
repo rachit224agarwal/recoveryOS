@@ -147,6 +147,8 @@ export interface GuardrailResult {
 // Simulator contract
 // ---------------------------------------------------------------------------
 
+export type ExecutionProviderName = "simulator" | "razorpay_test";
+
 export interface SimulatedActionRequest {
   transactionId: string;
   runId: string;
@@ -163,4 +165,15 @@ export interface SimulatedActionResult {
   failureReason?: string;
   latencyMs: number;
   amountProcessed: number;
+  /** Which executor produced this result. */
+  provider: ExecutionProviderName;
+  /** Present when the provider created a real hosted payment (Razorpay Payment Link). */
+  paymentLinkUrl?: string;
+  paymentLinkId?: string;
+}
+
+/** Uniform contract every execution backend must satisfy. */
+export interface ExecutionProvider {
+  name: ExecutionProviderName;
+  execute(req: SimulatedActionRequest): Promise<SimulatedActionResult>;
 }

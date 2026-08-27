@@ -4,6 +4,7 @@ import { MerchantPolicy } from "../models/policy.js";
 import { success } from "../utils/api.js";
 import { isDatabaseReady } from "../config/db.js";
 import { activeLlmLabel } from "../services/llm/llmService.js";
+import { activeExecutorLabel } from "../providers/execution.js";
 
 export const metaRouter = Router();
 
@@ -14,6 +15,7 @@ metaRouter.get("/health", async (_req, res) => {
       status: "ok",
       database: isDatabaseReady() ? "connected" : "disconnected",
       llm: activeLlmLabel(),
+      executor: activeExecutorLabel(),
       time: new Date().toISOString(),
     },
   });
@@ -32,6 +34,7 @@ metaRouter.get("/meta", async (_req, res, next) => {
         "Synthetic simulation — no real money moves and all data is generated for demonstration.",
       merchants,
       transactionCount: txnCount,
+      executor: activeExecutorLabel(),
     });
   } catch (err) {
     next(err);

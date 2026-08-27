@@ -1,6 +1,7 @@
 import { createApp } from "./app.js";
 import { env } from "./config/env.js";
 import { connectDatabase, disconnectDatabase } from "./config/db.js";
+import { startPaymentSweeper } from "./services/paymentSweeper.js";
 
 async function main(): Promise<void> {
   await connectDatabase();
@@ -10,6 +11,8 @@ async function main(): Promise<void> {
     console.log(`[RecoveryOS] API listening on http://localhost:${env.port}`);
     console.log(`[RecoveryOS] LLM: ${env.llmProvider} (${env.llmModel || "default"})`);
   });
+
+  startPaymentSweeper();
 
   const shutdown = async (signal: string) => {
     console.log(`\n[RecoveryOS] ${signal} received — shutting down`);

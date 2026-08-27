@@ -21,7 +21,7 @@ import { EmptyState, ErrorState } from "@/components/ui/states";
 import { ActionIcon, GuardrailBadge, OutcomeBadge, StatusBadge } from "@/components/domain/status";
 import { SectionLabel } from "@/components/domain/MetricCard";
 import type { AgentEvent, TransactionStatus } from "@/types/api";
-import { actionCopy, categoryCopy, codeCopy, eventTypeCopy, guardrailCopy, historyLabel, methodLabel, outcomeCopy, statusCopy } from "@/lib/copy";
+import { actionCopy, categoryCopy, codeCopy, eventTypeCopy, executorExplainer, guardrailCopy, historyLabel, methodLabel, outcomeCopy, statusCopy } from "@/lib/copy";
 import { cn, formatDateTime, formatINR, formatPct } from "@/lib/utils";
 
 interface TxnDetail {
@@ -306,10 +306,31 @@ export function TransactionDetailPage() {
                     {latestRun.executedAction ? (
                       <div className="mt-4 border-t pt-3">
                         <SectionLabel>Did it work?</SectionLabel>
-                        <div className="flex items-center gap-2 text-xs">
+                        <div className="flex flex-wrap items-center gap-2 text-xs">
                           <OutcomeBadge outcome={latestRun.executedAction.outcome} />
                           <span className="text-muted-foreground">{oc.blurb}</span>
+                          <Badge tone={latestRun.executedAction.provider === "razorpay_test" ? "info" : "outline"}>
+                            {latestRun.executedAction.provider === "razorpay_test"
+                              ? "Razorpay test API"
+                              : "Simulated"}
+                          </Badge>
                         </div>
+                        <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
+                          <span className="font-medium text-foreground">
+                            {executorExplainer(latestRun.executedAction.provider).title}:
+                          </span>{" "}
+                          {executorExplainer(latestRun.executedAction.provider).body}
+                        </p>
+                        {latestRun.executedAction.paymentLinkUrl ? (
+                          <a
+                            href={latestRun.executedAction.paymentLinkUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="mt-1 inline-block text-xs font-medium text-info hover:underline"
+                          >
+                            View the Razorpay payment link ↗
+                          </a>
+                        ) : null}
                         <p className="num mt-1 text-[11px] text-muted-foreground">
                           receipt: {latestRun.executedAction.idempotencyKey}
                         </p>

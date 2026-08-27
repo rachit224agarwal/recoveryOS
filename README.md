@@ -101,6 +101,31 @@ Every screen answers exactly one question, in plain language:
   the answer is here.
 - **Playground** — Break payments on purpose and watch recovery happen live.
 
+## Optional: real Razorpay integration (test mode)
+
+Want the execution step to hit Razorpay's **actual API** instead of the local simulator?
+Test mode gives you a real hosted checkout and real webhooks with **zero real money**:
+
+1. Sign up free at [razorpay.com](https://razorpay.com) → Dashboard → Settings → API Keys →
+   generate **Test keys**.
+2. In `server/.env` set:
+   ```env
+   EXECUTION_PROVIDER=razorpay_test
+   RAZORPAY_KEY_ID=rzp_test_xxxxxxxx
+   RAZORPAY_KEY_SECRET=xxxxxxxx
+   ```
+3. Add a webhook (Dashboard → Settings → Webhooks) pointing to
+   `https://your-public-url/api/webhooks/razorpay` with the *Payment link paid* event, and
+   paste its secret into `RAZORPAY_WEBHOOK_SECRET`.
+4. Restart, break a payment on the Playground page, open the real Razorpay link it creates,
+   pay with Razorpay's test instruments (`4111 1111 1111 1111` / `success@razorpay`) — the
+   signed webhook flips the transaction to recovered automatically.
+
+Safety properties: webhook payloads are verified with HMAC-SHA256 signatures (forged or
+unsigned requests are rejected), only actions the guardrails already approved can be
+confirmed, and if Razorpay is unreachable the workflow degrades to the simulator instead of
+failing.
+
 ## The design rule that makes it trustworthy
 
 > **The AI recommends. Ordinary code decides.**

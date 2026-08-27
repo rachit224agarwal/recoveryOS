@@ -1,16 +1,17 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion } from "framer-motion";
-import { CheckCircle2, FlaskConical, Play, ShieldCheck, XCircle } from "lucide-react";
+import { CheckCircle2, ExternalLink, FlaskConical, Play, ShieldCheck, XCircle } from "lucide-react";
 import { api, ApiRequestError } from "@/services/api";
 import { useAsync } from "@/hooks/useAsync";
 import { PageHeader } from "@/components/domain/PageHeader";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Button, LinkButton } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/input";
 import { SectionLabel } from "@/components/domain/MetricCard";
 import { GuardrailBadge, OutcomeBadge } from "@/components/domain/status";
-import { categoryCopy, eventTypeCopy } from "@/lib/copy";
+import { categoryCopy, eventTypeCopy, executorExplainer } from "@/lib/copy";
 import type { AgentRun } from "@/types/api";
 import { formatDateTime, formatINR, formatPct } from "@/lib/utils";
 
@@ -42,10 +43,46 @@ export function SimulationPage() {
   const [running, setRunning] = useState(false);
   const [result, setResult] = useState<{ transactionId: string; run: AgentRun } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Live Razorpay link lifecycle: waiting → paid once the webhook confirms.
+  const [paymentStatus, setPaymentStatus] = useState<"idle" | "waiting" | "paid" | "timeout">("idle");
+  const pollRef = useRef<number | null>(null);
+
+  const stopPolling = () => {
+    if (pollRef.current !== null) {
+      window.clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+  };
+  useEffect(() => stopPolling, []);
+
+  const startPollingForPayment = (txnId: string) => {
+    stopPolling();
+    setPaymentStatus("waiting");
+    const startedAt = Date.now();
+    pollRef.current = window.setInterval(async () => {
+      try {
+        // Server asks Razorpay's API directly — works with or without webhooks.
+        const res = await api.getPaymentStatus(txnId);
+        if (res.paymentStatus === "paid") {
+          setPaymentStatus("paid");
+          stopPolling();
+        } else if (res.paymentStatus === "cancelled") {
+          setPaymentStatus("timeout");
+          stopPolling();
+        } else if (Date.now() - startedAt > 120_000) {
+          setPaymentStatus("timeout");
+          stopPolling();
+        }
+      } catch {
+        /* transient — keep polling */
+      }
+    }, 3_000);
+  };
 
   const simulate = async () => {
     setRunning(true);
     setError(null);
+    setPaymentStatus("idle");
     try {
       const res = await api.simulateFailure({
         amount: Number(amount),
@@ -56,6 +93,9 @@ export function SimulationPage() {
         merchantId,
       });
       setResult({ transactionId: res.transaction.transactionId, run: res.run });
+      if (res.run.executedAction?.paymentLinkUrl) {
+        startPollingForPayment(res.transaction.transactionId);
+      }
     } catch (err) {
       setError(
         err instanceof ApiRequestError ? err.message : "Simulation failed — please try again."
@@ -207,36 +247,84 @@ export function SimulationPage() {
                   </Link>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <p className="text-[15px] leading-relaxed">
-                    {run.executedAction?.outcome === "SUCCESS" ? (
-                      <>
+                  {/* Real Razorpay link branch */}
+                  {run.executedAction?.paymentLinkUrl ? (
+                    paymentStatus === "paid" ? (
+                      <p className="text-[15px] leading-relaxed">
                         <CheckCircle2 className="mr-1.5 inline h-4 w-4 text-success" />
-                        Good news — the agent chose{" "}
-                        <b>{(run.recommendation?.recommendedAction ?? "").replace(/_/g, " ")}</b> and it worked.{" "}
-                        <b className="num text-success">{formatINR(Number(amount))} recovered.</b>
-                      </>
-                    ) : run.guardrailResult?.decision === "BLOCK" ? (
-                      <>
-                        <XCircle className="mr-1.5 inline h-4 w-4 text-danger" />
-                        The agent wanted to act, but <b>safety rules said no</b>. Nothing was executed — that's the guardrails doing their job.
-                      </>
-                    ) : run.status === "awaiting_review" ? (
-                      <>
-                        <ShieldCheck className="mr-1.5 inline h-4 w-4 text-warning" />
-                        This one was too risky to automate — <b>routed to a human</b> for approval instead.
-                      </>
+                        You paid the real Razorpay checkout and{" "}
+                        <b>Razorpay's webhook confirmed it</b> — signature verified, money marked
+                        recovered. <b className="num text-success">{formatINR(Number(amount))} back.</b>
+                      </p>
                     ) : (
-                      <>
-                        <XCircle className="mr-1.5 inline h-4 w-4 text-warning" />
-                        The agent acted but the simulated bank said no again this time.
-                      </>
-                    )}
-                  </p>
+                      <div className="space-y-3">
+                        <p className="text-[15px] leading-relaxed">
+                          The agent created a <b>real Razorpay payment link</b> (test mode — no real
+                          money). Open it, pay as the customer, and watch this page flip on its own
+                          when Razorpay's webhook lands.
+                        </p>
+                        <div className="flex flex-wrap items-center gap-3">
+                          <LinkButton href={run.executedAction.paymentLinkUrl} target="_blank" rel="noreferrer">
+                            <ExternalLink className="h-4 w-4" />
+                            Open Razorpay checkout
+                          </LinkButton>
+                          {paymentStatus === "waiting" ? (
+                            <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <span className="h-2 w-2 animate-pulse rounded-full bg-warning" />
+                              Waiting for your payment… checking every 3s
+                            </span>
+                          ) : paymentStatus === "timeout" ? (
+                            <span className="flex items-center gap-2 text-xs text-muted-foreground">
+                              Still waiting — the link stays valid; pay and the status will update.
+                            </span>
+                          ) : null}
+                        </div>
+                      </div>
+                    )
+                  ) : run.executedAction?.outcome === "SUCCESS" ? (
+                    <p className="text-[15px] leading-relaxed">
+                      <CheckCircle2 className="mr-1.5 inline h-4 w-4 text-success" />
+                      Good news — the agent chose{" "}
+                      <b>{(run.recommendation?.recommendedAction ?? "").replace(/_/g, " ")}</b> and it worked.{" "}
+                      <b className="num text-success">{formatINR(Number(amount))} recovered.</b>
+                    </p>
+                  ) : run.guardrailResult?.decision === "BLOCK" ? (
+                    <p className="text-[15px] leading-relaxed">
+                      <XCircle className="mr-1.5 inline h-4 w-4 text-danger" />
+                      The agent wanted to act, but <b>safety rules said no</b>. Nothing was executed — that's the guardrails doing their job.
+                    </p>
+                  ) : run.status === "awaiting_review" ? (
+                    <p className="text-[15px] leading-relaxed">
+                      <ShieldCheck className="mr-1.5 inline h-4 w-4 text-warning" />
+                      This one was too risky to automate — <b>routed to a human</b> for approval instead.
+                    </p>
+                  ) : (
+                    <p className="text-[15px] leading-relaxed">
+                      <XCircle className="mr-1.5 inline h-4 w-4 text-warning" />
+                      The agent acted but the simulated bank said no again this time.
+                    </p>
+                  )}
 
                   <div className="flex flex-wrap items-center gap-2">
                     <OutcomeBadge outcome={run.executedAction?.outcome} />
                     {run.guardrailResult ? <GuardrailBadge decision={run.guardrailResult.decision} /> : null}
+                    {run.executedAction?.provider ? (
+                      <Badge tone={run.executedAction.provider === "razorpay_test" ? "info" : "outline"}>
+                        {run.executedAction.provider === "razorpay_test"
+                          ? "Executed via Razorpay test API"
+                          : "Simulated execution"}
+                      </Badge>
+                    ) : null}
                   </div>
+
+                  {run.executedAction ? (
+                    <div className="rounded-md bg-muted/60 px-3 py-2 text-xs leading-relaxed text-muted-foreground">
+                      <b className="text-foreground">
+                        {executorExplainer(run.executedAction.provider).title}:
+                      </b>{" "}
+                      {executorExplainer(run.executedAction.provider).body}
+                    </div>
+                  ) : null}
 
                   <div className="rounded-md bg-muted/60 px-3 py-2 text-xs leading-relaxed text-muted-foreground">
                     <b className="text-foreground">The agent's reasoning:</b>{" "}

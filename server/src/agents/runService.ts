@@ -86,6 +86,9 @@ export async function runRecoveryWorkflow(transactionId: string): Promise<IAgent
             >["outcome"],
             failureReason: result.executionOutcome.failureReason,
             riskLevel: result.recommendation?.riskLevel ?? "low",
+            provider: result.executionOutcome.provider,
+            paymentLinkId: result.executionOutcome.paymentLinkId,
+            paymentLinkUrl: result.executionOutcome.paymentLinkUrl,
           }
         : undefined,
       llmUsed: result.llmUsed,

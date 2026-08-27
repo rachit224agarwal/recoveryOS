@@ -43,6 +43,10 @@ export interface IAgentRun {
     failureReason?: string;
     riskLevel: RiskLevel;
     scheduledForMinutes?: number;
+    /** Which executor produced the result. */
+    provider?: "simulator" | "razorpay_test";
+    paymentLinkId?: string;
+    paymentLinkUrl?: string;
   };
   error?: string;
   startedAt: Date;
@@ -94,6 +98,9 @@ const AgentRunSchema = new Schema<IAgentRun>(
       failureReason: { type: String },
       riskLevel: { type: String },
       scheduledForMinutes: { type: Number },
+      provider: { type: String },
+      paymentLinkId: { type: String, index: true },
+      paymentLinkUrl: { type: String },
     },
     error: { type: String },
     startedAt: { type: Date, required: true },

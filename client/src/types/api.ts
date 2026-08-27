@@ -99,6 +99,9 @@ export interface AgentRun {
     outcome: "SUCCESS" | "FAILED" | "PENDING" | "BLOCKED";
     failureReason?: string;
     riskLevel: "low" | "medium" | "high";
+    provider?: "simulator" | "razorpay_test";
+    paymentLinkId?: string;
+    paymentLinkUrl?: string;
   };
   error?: string;
   startedAt: string;
@@ -173,4 +176,5 @@ export interface AppMeta {
   disclaimer: string;
   merchants: MerchantInfo[];
   transactionCount: number;
+  executor?: string;
 }

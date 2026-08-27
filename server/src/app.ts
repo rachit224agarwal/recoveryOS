@@ -7,6 +7,8 @@ import { runsRouter } from "./routes/runs.js";
 import { auditRouter } from "./routes/audit.js";
 import { analyticsRouter } from "./routes/analytics.js";
 import { metaRouter } from "./routes/meta.js";
+import { webhooksRouter } from "./routes/webhooks.js";
+import { paymentsRouter } from "./routes/payments.js";
 import { errorHandler, notFoundHandler } from "./utils/api.js";
 
 export function createApp(): express.Express {
@@ -18,6 +20,10 @@ export function createApp(): express.Express {
       credentials: false,
     })
   );
+
+  // Webhooks need the RAW body for HMAC verification — mount before express.json.
+  app.use("/api/webhooks", webhooksRouter);
+
   app.use(express.json({ limit: "256kb" }));
 
   app.use("/api/meta", metaRouter);
@@ -26,6 +32,7 @@ export function createApp(): express.Express {
   app.use("/api/runs", runsRouter);
   app.use("/api/audit", auditRouter);
   app.use("/api/analytics", analyticsRouter);
+  app.use("/api/payments", paymentsRouter);
 
   app.use(notFoundHandler);
   app.use(errorHandler);

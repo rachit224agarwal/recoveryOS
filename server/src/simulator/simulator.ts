@@ -57,6 +57,7 @@ export function simulateAction(req: SimulatedActionRequest): SimulatedActionResu
         : undefined,
     latencyMs,
     amountProcessed: outcome === "SUCCESS" ? req.amount : 0,
+    provider: "simulator",
   };
 }
 

@@ -288,10 +288,14 @@ export async function executeAction(state: RecoveryStateType): Promise<Partial<R
   await emit(
     state.runId,
     "execute_action",
-    `${rec.recommendedAction.replace(/_/g, " ")} executed → ${result.outcome}`,
-    result.failureReason
-      ? `failure reason: ${result.failureReason}`
-      : `₹${result.amountProcessed.toLocaleString("en-IN")} processed`
+    result.paymentLinkUrl
+      ? `${rec.recommendedAction.replace(/_/g, " ")} executed → Razorpay payment link created (awaiting customer payment)`
+      : `${rec.recommendedAction.replace(/_/g, " ")} executed → ${result.outcome}`,
+    result.paymentLinkUrl
+      ? `live link ${result.paymentLinkId} via Razorpay test API — webhook will confirm the outcome`
+      : result.failureReason
+        ? `failure reason: ${result.failureReason}`
+        : `₹${result.amountProcessed.toLocaleString("en-IN")} processed (${result.provider})`
   );
 
   return {
@@ -301,6 +305,9 @@ export async function executeAction(state: RecoveryStateType): Promise<Partial<R
       failureReason: result.failureReason,
       idempotencyKey,
       attemptNumber,
+      provider: result.provider,
+      paymentLinkId: result.paymentLinkId,
+      paymentLinkUrl: result.paymentLinkUrl,
     },
   };
 }
@@ -354,6 +361,24 @@ export async function verifyOutcome(state: RecoveryStateType): Promise<Partial<R
       "verify_outcome",
       `Payment recovered · ₹${txn.amount.toLocaleString("en-IN")}`,
       "Simulated settlement confirmed"
+    );
+  } else if (exec.outcome === "PENDING" && exec.paymentLinkUrl) {
+    // Real Razorpay link is live — the signed webhook completes this story.
+    await Transaction.updateOne(
+      { transactionId: txn.transactionId },
+      {
+        $set: {
+          status: "in_review",
+          latestDecision: decisionSnapshot,
+          simulatedOutcome: "PENDING",
+        },
+      }
+    );
+    await emit(
+      state.runId,
+      "verify_outcome",
+      "Razorpay payment link sent — waiting for the customer to pay",
+      `monitoring ${exec.paymentLinkId}; a verified webhook will finalize recovery`
     );
   } else if (exec.outcome === "PENDING") {
     await Transaction.updateOne(

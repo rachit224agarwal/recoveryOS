@@ -5,7 +5,6 @@ import { AgentRun } from "../../models/agentRun.js";
 import type { ITransaction } from "../../models/transaction.js";
 import type { IMerchantPolicy } from "../../models/policy.js";
 import { ApiError } from "../../utils/api.js";
-import { simulateAction } from "../../simulator/simulator.js";
 import type { SimulatedActionResult, RecommendedAction } from "../../types/domain.js";
 
 /**
@@ -144,7 +143,8 @@ export async function executeSimulatedAction(input: ExecuteActionInput): Promise
   const delayMs =
     input.actionType === "schedule_retry" ? 30 * 60 * 1000 : 0;
 
-  const result = simulateAction({
+  const { getExecutionProvider } = await import("../../providers/execution.js");
+  const result = await getExecutionProvider().execute({
     transactionId: txn.transactionId,
     runId: input.runId,
     idempotencyKey: delayMs ? `${idempotencyKey}:t+${delayMs}` : idempotencyKey,

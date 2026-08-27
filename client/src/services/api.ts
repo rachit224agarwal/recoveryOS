@@ -102,6 +102,14 @@ export const api = {
     return request<AuditResponse>(`/audit${qs(params)}`);
   },
 
+  // payments — webhook-free Razorpay link status sync
+  getPaymentStatus: (transactionId: string) =>
+    request<{
+      paymentStatus: "waiting" | "paid" | "cancelled" | "none";
+      linkId: string | null;
+      amountPaid?: number;
+    }>(`/payments/status/${encodeURIComponent(transactionId)}`),
+
   // simulation
   simulateFailure: (body: {
     amount: number;

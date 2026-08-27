@@ -65,6 +65,19 @@ export function outcomeCopy(outcome?: string): { label: string; blurb: string } 
   return map[outcome] ?? { label: outcome, blurb: "" };
 }
 
+export function executorExplainer(provider?: string): { title: string; body: string } {
+  if (provider === "razorpay_test") {
+    return {
+      title: "Real rails",
+      body: "A genuine Razorpay payment link was just created. When your customer pays it, RecoveryOS finds out by itself within seconds and marks this recovered — nobody clicks anything.",
+    };
+  }
+  return {
+    title: "Practice run",
+    body: "Test mode can't re-charge cards or send real SMS, so this action was simulated — a prediction of what would happen. Sending payment links is the one move that always uses the real Razorpay API.",
+  };
+}
+
 export function eventTypeCopy(typeOrNode: string): string {
   const map: Record<string, string> = {
     run_started: "Workflow started",

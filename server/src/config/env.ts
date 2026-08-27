@@ -23,6 +23,14 @@ export const env = {
   ollamaBaseUrl: process.env.OLLAMA_BASE_URL ?? "http://localhost:11434",
   ollamaModel: process.env.OLLAMA_MODEL ?? "qwen3:8b",
 
+  // Execution layer: "simulator" (default) or "razorpay_test" for real Payment Links API
+  executionProvider: (process.env.EXECUTION_PROVIDER ?? "simulator") as
+    | "simulator"
+    | "razorpay_test",
+  razorpayKeyId: process.env.RAZORPAY_KEY_ID ?? "",
+  razorpayKeySecret: process.env.RAZORPAY_KEY_SECRET ?? "",
+  razorpayWebhookSecret: process.env.RAZORPAY_WEBHOOK_SECRET ?? "",
+
   agentVersion: "1.0.0",
 } as const;
 

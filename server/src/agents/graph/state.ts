@@ -83,6 +83,9 @@ export const RecoveryState = Annotation.Root({
         failureReason?: string;
         idempotencyKey: string;
         attemptNumber: number;
+        provider?: "simulator" | "razorpay_test";
+        paymentLinkId?: string;
+        paymentLinkUrl?: string;
       }
     | null
   >({

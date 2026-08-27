@@ -30,6 +30,16 @@ export interface ButtonProps
   extends ButtonHTMLAttributes<HTMLButtonElement>,
     VariantProps<typeof buttonVariants> {}
 
+/** Anchor styled as a button — for external links like Razorpay checkout. */
+export function LinkButton({
+  className,
+  variant,
+  size,
+  ...props
+}: React.AnchorHTMLAttributes<HTMLAnchorElement> & VariantProps<typeof buttonVariants>) {
+  return <a className={cn(buttonVariants({ variant, size }), className)} {...props} />;
+}
+
 export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant, size, ...props }, ref) => (
     <button ref={ref} className={cn(buttonVariants({ variant, size }), className)} {...props} />
